@@ -244,7 +244,7 @@ namespace CqlSharp.Serialization
             Type type = typeof(T);
             IsTableSet = !type.IsAnonymous();
             if (IsTableSet)
-                Table = type.Name.ToLower();
+                Table = type.Name;
 
             //check for CqlTable attribute
             var tableAttribute = Attribute.GetCustomAttribute(type, typeof(CqlTableAttribute)) as CqlTableAttribute;
@@ -361,7 +361,7 @@ namespace CqlSharp.Serialization
             }
             else
             {
-                column.Name = member.Name.ToLower();
+                column.Name = member.Name;
             }
 
             //get CqlType from attribute (if any)
