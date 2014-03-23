@@ -60,6 +60,7 @@
     <Compile Include="CqlDataAdapter.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="CqlError.cs" />
     <Compile Include="CqlParameter.cs" />
     <Compile Include="CqlPrepared.cs" />
     <Compile Include="CqlProviderFactory.cs" />
@@ -95,6 +96,7 @@
     <Compile Include="Network\nSnappy\VarInt32.cs" />
     <Compile Include="Network\nSnappy\Writer.cs" />
     <Compile Include="Memory\PoolMemoryStream.cs" />
+    <Compile Include="Network\SocketExtensions.cs" />
     <Compile Include="Protocol\AlreadyExistsException.cs" />
     <Compile Include="Protocol\AuthChallengeFrame.cs" />
     <Compile Include="Protocol\AuthenticateFrame.cs" />
@@ -183,9 +185,6 @@
   <ItemGroup>
     <None Include="Network\nSnappy\readme.txt" />
     <None Include="Properties\logo.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="CqlSharp.nuspec" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

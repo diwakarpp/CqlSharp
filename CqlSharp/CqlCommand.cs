@@ -544,7 +544,7 @@ namespace CqlSharp
         /// </summary>
         /// <typeparam name="T"> class representing the rows returned </typeparam>
         /// <returns> </returns>
-        public Task<CqlDataReader<T>> ExecuteReaderAsync<T>() where T : class, new()
+        public Task<CqlDataReader<T>> ExecuteReaderAsync<T>() where T: class, new()
         {
             return ExecuteReaderAsync<T>(CommandBehavior.Default, CancellationToken.None);
         }
@@ -580,8 +580,7 @@ namespace CqlSharp
         /// <param name="cancellationToken"> The cancellation token. </param>
         /// <returns> </returns>
         public async Task<CqlDataReader<T>> ExecuteReaderAsync<T>(CommandBehavior behavior,
-                                                                  CancellationToken cancellationToken)
-            where T : class, new()
+                                                                  CancellationToken cancellationToken) where T : class, new()
         {
             var result = await ExecuteReaderAsyncInternal(behavior, cancellationToken).ConfigureAwait(false);
 
@@ -645,7 +644,12 @@ namespace CqlSharp
             if (behavior.HasFlag(CommandBehavior.KeyInfo) ||
                 behavior.HasFlag(CommandBehavior.SchemaOnly) ||
                 behavior.HasFlag(CommandBehavior.SingleRow))
-                throw new ArgumentException("Command behavior not supported", "behavior");
+            {
+                var ex = new ArgumentException("Command behavior not supported", "behavior");
+                _queryResult = new CqlError(ex);
+                throw ex;
+            }
+                
 
             var logger = _connection.LoggerManager.GetLogger("CqlSharp.CqlCommand.ExecuteReader");
 
@@ -665,6 +669,7 @@ namespace CqlSharp
                 {
                     var ex = new CqlException("Can not create a DataReader for non-select query.");
                     logger.LogError("Error executing reader: {0}", ex);
+                    _queryResult = new CqlError(ex, result.TracingId);
                     throw ex;
                 }
 
@@ -700,7 +705,9 @@ namespace CqlSharp
                 }
                 else
                 {
-                    throw new CqlException("Execute Scalar Query yield no results");
+                    var ex = new CqlException("Execute Scalar Query yield no results");
+                    _queryResult = new CqlError(ex, reader.TracingId);
+                    throw ex;
                 }
             }
 
@@ -766,35 +773,28 @@ namespace CqlSharp
 
                     case CqlResultType.Void:
                         logger.LogQuery("Query {0} executed succesfully", Query);
-                        _queryResult = new CqlVoid { TracingId = result.TracingId };
+                        _queryResult = new CqlVoid (result.TracingId);
                         return 1;
 
                     case CqlResultType.SchemaChange:
                         logger.LogQuery("Query {0} resulted in {1}.{2} {3}", Query, result.Keyspace, result.Table,
                                         result.Change);
 
-                        _queryResult = new CqlSchemaChange
-                                           {
-                                               TracingId = result.TracingId,
-                                               Keyspace = result.Keyspace,
-                                               Table = result.Table,
-                                               Change = result.Change
-                                           };
-
+                        _queryResult = new CqlSchemaChange(result.Keyspace, result.Table, result.Change,
+                                                           result.TracingId);
+                
                         return -1;
 
                     case CqlResultType.SetKeyspace:
                         logger.LogQuery("Query {0} resulted in keyspace set to {1}", Query, result.Keyspace);
-                        _queryResult = new CqlSetKeyspace
-                                           {
-                                               TracingId = result.TracingId,
-                                               Keyspace = result.Keyspace
-                                           };
+                        _queryResult = new CqlSetKeyspace(result.Keyspace, result.TracingId);
 
                         return -1;
 
                     default:
-                        throw new CqlException("Unexpected type of result received");
+                        var ex = new CqlException("Unexpected type of result received: " + result.CqlResultType.ToString());
+                        _queryResult = new CqlError(ex, result.TracingId);
+                        throw ex;
                 }
             }
             finally
@@ -851,11 +851,13 @@ namespace CqlSharp
                 {
                     case CqlResultType.Void:
                         logger.LogQuery("Bath executed succesfully");
-                        _queryResult = new CqlVoid { TracingId = result.TracingId };
+                        _queryResult = new CqlVoid(result.TracingId);
                         break;
 
                     default:
-                        throw new CqlException("Unexpected type of result received");
+                        var ex = new CqlException("Unexpected type of result received for a batch operation: " + result.CqlResultType.ToString());
+                        _queryResult = new CqlError(ex, result.TracingId);
+                        throw ex;
                 }
             }
             finally
@@ -940,7 +942,7 @@ namespace CqlSharp
         /// <param name="fromCache"> if set to <c>true</c> [from cache]. </param>
         private void FinalizePrepare(ResultFrame result, bool fromCache)
         {
-            _queryResult = new CqlPrepared { TracingId = result.TracingId, FromCache = fromCache };
+            _queryResult = new CqlPrepared(fromCache, result.TracingId);
 
             //set as prepared
             _prepared = true;
@@ -1034,7 +1036,9 @@ namespace CqlSharp
                         var result = await connection.SendRequestAsync(useFrame, logger, 1, false, token).ConfigureAwait(false) as ResultFrame;
                         if (result == null || result.CqlResultType != CqlResultType.SetKeyspace)
                         {
-                            if (result != null) result.Dispose();
+                            if (result != null) 
+                                result.Dispose();
+
                             throw new CqlException("Unexpected frame received");
                         }
                         //assume success
@@ -1053,6 +1057,7 @@ namespace CqlSharp
                     if (attempt == attempts - 1)
                     {
                         logger.LogError("Query failed after {0} attempts with error {1}", attempts, pex);
+                        _queryResult = new CqlError(pex, pex.TracingId);
                         throw;
                     }
 
@@ -1067,6 +1072,7 @@ namespace CqlSharp
                         default:
                             logger.LogWarning("Query failed with {0} error: {1}", pex.Code.ToString(), pex.Message);
                             //some other Cql error (syntax ok?), quit
+                            _queryResult = new CqlError(pex, pex.TracingId);
                             throw;
                     }
                 }
@@ -1076,6 +1082,7 @@ namespace CqlSharp
                     {
                         //out of attempts
                         logger.LogError("Query failed after {0} attempts with error {1}", attempts, ex);
+                        _queryResult = new CqlError(ex);
                         throw;
                     }
 
@@ -1083,16 +1090,20 @@ namespace CqlSharp
                     {
                         //using exclusive connection strategy. If connection fails, do not recover
                         logger.LogError("Query failed on exclusive connection with error {0}", ex);
+                        _queryResult = new CqlError(ex);
                         throw;
                     }
 
-                    //connection probable collapsed, go an try again
+                    //connection probably collapsed, go an try again
                     logger.LogWarning("Query to {0} failed, going for retry. {1}", connection, ex);
                 }
             }
 
-            throw new CqlException("Failed to return query result after max amount of attempts");
+            var failed = new CqlException("Failed to return query result after max amount of attempts");
+            _queryResult = new CqlError(failed);
+            throw failed;
         }
+
 
         /// <summary>
         ///   Prepares the query async on the given connection.
@@ -1102,21 +1113,36 @@ namespace CqlSharp
         /// <param name="token"> The token. </param>
         /// <returns> </returns>
         /// <exception cref="CqlException">Unexpected frame received  + response.OpCode</exception>
-        private async Task<ResultFrame> SendPrepareAsync(Connection connection, Logger logger,
+        private Task<ResultFrame> SendPrepareAsync(Connection connection, Logger logger, CancellationToken token)
+        {
+            return SendPrepareAsync(Query, connection, logger, token);
+        }
+
+
+        /// <summary>
+        ///   Prepares the query async on the given connection.
+        /// </summary>
+        /// <param name="query">the query to prepare </param>
+        /// <param name="connection"> The connection. </param>
+        /// <param name="logger"> The logger. </param>
+        /// <param name="token"> The token. </param>
+        /// <returns> </returns>
+        /// <exception cref="CqlException">Unexpected frame received  + response.OpCode</exception>
+        private async Task<ResultFrame> SendPrepareAsync(string query, Connection connection, Logger logger,
                                                          CancellationToken token)
         {
             //create prepare frame
-            var query = new PrepareFrame(Query);
+            var request = new PrepareFrame(query);
 
             //update frame with tracing option if requested
             if (EnableTracing)
-                query.Flags |= FrameFlags.Tracing;
+                request.Flags |= FrameFlags.Tracing;
 
-            logger.LogVerbose("Sending prepare {0} using {1}", Query, connection);
+            logger.LogVerbose("Sending prepare {0} using {1}", query, connection);
 
             //send prepare request
             using (
-                Frame response = await connection.SendRequestAsync(query, logger, 1, false, token).ConfigureAwait(false)
+                Frame response = await connection.SendRequestAsync(request, logger, 1, false, token).ConfigureAwait(false)
                 )
             {
                 var result = response as ResultFrame;
@@ -1125,8 +1151,8 @@ namespace CqlSharp
                     throw new CqlException("Unexpected frame received " + response.OpCode);
                 }
 
-                _connection.PreparedQueryCache[Query] = result;
-                connection.Node.PreparedQueryIds[Query] = result.PreparedQueryId;
+                _connection.PreparedQueryCache[query] = result;
+                connection.Node.PreparedQueryIds[query] = result.PreparedQueryId;
 
                 return result;
             }
@@ -1252,7 +1278,7 @@ namespace CqlSharp
                     if (!connection.Node.PreparedQueryIds.TryGetValue(command.CqlQuery, out queryId))
                     {
                         ResultFrame prepareResult =
-                            await SendPrepareAsync(connection, logger, token).ConfigureAwait(false);
+                            await SendPrepareAsync(command.CqlQuery, connection, logger, token).ConfigureAwait(false);
 
                         queryId = prepareResult.PreparedQueryId;
                     }
