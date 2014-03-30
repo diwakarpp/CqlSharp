@@ -98,7 +98,7 @@ namespace CqlSharp
                 Column column = MetaData[index];
                 object value = ValueSerialization.Deserialize(column.CqlType, column.CollectionKeyType,
                                                               column.CollectionValueType, CurrentValues[index]);
-                return value ?? DBNull.Value;
+                return value ?? ValueSerialization.RetSafeNull(column.CqlType);
             }
         }
 

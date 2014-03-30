@@ -224,6 +224,28 @@ namespace CqlSharp.Serialization
             return rawData;
         }
 
+        /// <summary>
+        /// Returns safe nulls as cassandra may return nulls for strings and numeric values too in some cases
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        /// <remarks>Pl retain this method during merge from the Reutzel's main branch</remarks>
+        public static object RetSafeNull(CqlType type)
+        {
+            switch (type)
+            {
+                case CqlType.Ascii:
+                    return string.Empty;
+
+                case CqlType.Text:
+                case CqlType.Varchar:
+                    return string.Empty;
+
+                default:
+                    return DBNull.Value;
+            }
+        }
+
         public static object Deserialize(CqlType type, CqlType? collectionKeyType, CqlType? collectionValueType,
                                          byte[] rawData)
         {
