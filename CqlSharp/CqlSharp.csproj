@@ -38,6 +38,12 @@
   <PropertyGroup>
     <ApplicationIcon>Properties\logo.ico</ApplicationIcon>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>CqlSharpKey.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
@@ -184,11 +190,9 @@
     <Compile Include="TypeExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="CqlSharpKey.snk" />
     <None Include="Network\nSnappy\readme.txt" />
     <None Include="Properties\logo.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="CqlSharp.nuspec" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
