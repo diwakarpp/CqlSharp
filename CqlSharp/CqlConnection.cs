@@ -223,7 +223,7 @@ namespace CqlSharp
         }
 
         /// <summary>
-        ///   Gets a string that represents the version of the server to which the object is connected.
+        ///   Gets a string that represents the version of the cluster to which the object is connected.
         /// </summary>
         /// <returns> The version of the database. The format of the string returned depends on the specific type of connection you are using. </returns>
         /// <exception cref="System.NotImplementedException"></exception>
@@ -238,6 +238,23 @@ namespace CqlSharp
             }
         }
 
+        /// <summary>
+        /// Gets the CQL version supported by the cluster.
+        /// </summary>
+        /// <value>
+        /// The CQL version.
+        /// </value>
+        /// <exception cref="System.InvalidOperationException">CqlConnection must be open before further use.</exception>
+        public virtual string CqlVersion
+        {
+            get
+            {
+                if (State != ConnectionState.Open)
+                    throw new InvalidOperationException("CqlConnection must be open before further use.");
+
+                return Cluster.CqlVersion;
+            }
+        }
         /// <summary>
         ///   Gets a string that describes the state of the connection.
         /// </summary>
@@ -316,7 +333,7 @@ namespace CqlSharp
         ///   Sets the connection timeout.
         /// </summary>
         /// <param name="timeout"> The timeout in seconds </param>
-        public void SetConnectionTimeout(int timeout)
+        public virtual void SetConnectionTimeout(int timeout)
         {
             _connectionTimeout = timeout < 0 ? 0 : timeout;
         }
@@ -336,7 +353,7 @@ namespace CqlSharp
         ///   Begins the transaction.
         /// </summary>
         /// <returns> </returns>
-        public new CqlBatchTransaction BeginTransaction()
+        public virtual new CqlBatchTransaction BeginTransaction()
         {
             return new CqlBatchTransaction(this);
         }
@@ -346,7 +363,7 @@ namespace CqlSharp
         /// </summary>
         /// <param name="isolationLevel"> The isolation level. </param>
         /// <returns> </returns>
-        public new CqlBatchTransaction BeginTransaction(IsolationLevel isolationLevel)
+        public virtual new CqlBatchTransaction BeginTransaction(IsolationLevel isolationLevel)
         {
             return new CqlBatchTransaction(this);
         }
@@ -411,7 +428,7 @@ namespace CqlSharp
         ///   Creates and returns a <see cref="T:CqlSharp.CqlCommand" /> object associated with the current connection.
         /// </summary>
         /// <returns> A <see cref="T:CqlSharp.CqlCommand" /> object. </returns>
-        public CqlCommand CreateCqlCommand()
+        public virtual CqlCommand CreateCqlCommand()
         {
             return new CqlCommand(this);
         }
@@ -452,7 +469,7 @@ namespace CqlSharp
         /// <summary>
         ///   Cancels any ongoing open operation.
         /// </summary>
-        public void Cancel()
+        public virtual void Cancel()
         {
             if (_openCancellationTokenSource != null)
                 _openCancellationTokenSource.Cancel();
