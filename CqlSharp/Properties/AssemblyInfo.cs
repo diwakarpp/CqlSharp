@@ -54,8 +54,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyVersion("0.36.0.0")]
 [assembly: AssemblyFileVersion("0.36.0.0")]
 
-#if DEBUG
-[assembly: InternalsVisibleTo("CqlSharp.Fakes")]
-[assembly: InternalsVisibleTo("CqlSharp.Test")]
-[assembly: InternalsVisibleTo("CqlTest")]
-#endif
+//Temorarily commented as public key needs to be specified for the strong signed dlls.
+//#if DEBUG
+//[assembly: InternalsVisibleTo("CqlSharp.Fakes")]
+//[assembly: InternalsVisibleTo("CqlSharp.Test")]
+//[assembly: InternalsVisibleTo("CqlTest")]
+//#endif
